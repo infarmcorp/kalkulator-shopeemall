@@ -364,7 +364,7 @@ function calc(d){
   const gp=hk-fee-hp-opex;
   const gm=hk>0?gp/hk:0;
   const net=gm-(d.tprofit/100)-(d.afil/100)-(d.ads/100);
-  const nna=gm-(d.tprofit/100)-(d.afil/100);
+  const nna=gm-(d.afil/100);
   const bep=mb>0?(fee+hp+opex)/mb:0;
   const roas=d.ads>0?(100/d.ads).toFixed(2)+'x':'—';
   return{gm,net,nna,bep,roas};
