@@ -283,14 +283,14 @@ td select.ts:focus{border-color:var(--gm);}
           <th onclick="sortBy('type')">Tipe <span class="si">↕</span></th>
           <th onclick="sortBy('hpp')" style="text-align:right;">HPP <span class="si">↕</span></th>
           <th onclick="sortBy('harga')" style="text-align:right;">Harga Jual <span class="si">↕</span></th>
-          <th class="col-het" style="text-align:right;">Harga Terendah</th>
-          <th class="col-het" style="text-align:right;">Untung @ Terendah</th>
           <th onclick="sortBy('minbeli')" style="text-align:right;">Min. Beli <span class="si">↕</span></th>
           <th onclick="sortBy('gm')" style="text-align:right;">Gross Margin <span class="si">↕</span></th>
           <th style="text-align:right;">Target Profit</th>
           <th class="col-afil" style="text-align:right;">Affiliate</th>
           <th class="col-ads" style="text-align:right;">Ads %</th>
           <th onclick="sortBy('net')" style="text-align:right;">Net Bersih <span class="si">↕</span></th>
+          <th class="col-het" style="text-align:right;">Harga Terendah</th>
+          <th class="col-het" style="text-align:right;">Profit Terendah</th>
           <th class="col-bep" style="text-align:right;">BEP Harga</th>
           <th style="text-align:right;">Target ROAS</th>
           <th class="col-nna" style="text-align:right;">Net Tanpa Iklan</th>
@@ -676,14 +676,14 @@ function render(){
       `<td><select class="ts" onchange="upd(${d.id},'type',this.value)">${selOpts(TYPES,d.type)}</select></td>`+
       `<td style="text-align:right"><input type="number" value="${d.hpp}" min="0" style="width:72px" onchange="upd(${d.id},'hpp',this.value)"></td>`+
       `<td style="text-align:right"><input type="number" value="${d.harga}" min="0" style="width:78px" onchange="upd(${d.id},'harga',this.value)"></td>`+
-      `<td class="col-het j-hetcell${hetEq?' het-eq':''}" style="text-align:right;${hetD}"><input type="number" value="${d.het||0}" min="0" style="width:78px" onchange="upd(${d.id},'het',this.value)"></td>`+
-      `<td class="col-het" style="text-align:right;${hetD}"><span class="j-hetnet ${c.hetNet===null?'':(c.hetNet>=0?'vp':'vn')}">${c.het>0?pct(c.hetNet):'—'}</span></td>`+
       `<td style="text-align:right"><input type="number" class="sm" value="${d.minbeli}" min="1" onchange="upd(${d.id},'minbeli',this.value)"></td>`+
       `<td style="text-align:right"><span class="j-gm pill ${pc(s)}">${pct(c.gm)}</span></td>`+
       `<td style="text-align:right"><input class="ti dec" type="text" value="${fmtD(d.tprofit)}" style="width:50px" onchange="updD(${d.id},'tprofit',this.value)" onblur="this.value=fmtD(parseD(this.value))"><span class="pu">%</span></td>`+
       `<td class="col-afil" style="text-align:right;${aD}"><input type="number" class="sm" value="${d.afil}" min="0" max="100" onchange="upd(${d.id},'afil',this.value)"><span class="pu">%</span></td>`+
       `<td class="col-ads" style="text-align:right;${adsD}"><input class="ti dec" type="text" value="${fmtD(d.ads)}" style="width:50px" onchange="updD(${d.id},'ads',this.value)" onblur="this.value=fmtD(parseD(this.value))"><span class="pu">%</span></td>`+
       `<td style="text-align:right"><span class="j-net pill ${pc(s)}">${pct(c.net)}</span></td>`+
+      `<td class="col-het j-hetcell${hetEq?' het-eq':''}" style="text-align:right;${hetD}"><input type="number" value="${d.het||0}" min="0" style="width:78px" onchange="upd(${d.id},'het',this.value)"></td>`+
+      `<td class="col-het" style="text-align:right;${hetD}"><span class="j-hetnet ${c.hetNet===null?'':(c.hetNet>=0?'vp':'vn')}">${c.het>0?pct(c.hetNet):'—'}</span></td>`+
       `<td class="col-bep" style="text-align:right;${bD}"><span class="j-bep ${bepOk?'vp':'vn'}">${rp(c.bep)}</span></td>`+
       `<td style="text-align:right"><span class="j-roas vd">${c.roas}</span></td>`+
       `<td class="col-nna" style="text-align:right;${nD}"><span class="j-nna ${c.nna>=0?'vp':'vn'}">${pct(c.nna)}</span></td>`;
@@ -860,11 +860,11 @@ function exportExcel(){
   if(data.length===0){showToast('Tidak ada data',true);return;}
   const rows=data.map(d=>{
     const c=calc(d);
-    return{'SKU':d.sku,'Kategori':d.kat,'Tipe':d.type,'HPP':d.hpp,'Harga Jual':d.harga,'Harga Terendah':d.het||0,'Min. Beli':d.minbeli,
+    return{'SKU':d.sku,'Kategori':d.kat,'Tipe':d.type,'HPP':d.hpp,'Harga Jual':d.harga,'Min. Beli':d.minbeli,
       'Gross Margin (%)':parseFloat((c.gm*100).toFixed(2)),'Target Profit (%)':d.tprofit,
       'Affiliate (%)':d.afil,'Ads (%)':d.ads,'Net Bersih (%)':parseFloat((c.net*100).toFixed(2)),
-      'BEP Harga':Math.round(c.bep),'Target ROAS':c.roas,'Net Tanpa Iklan (%)':parseFloat((c.nna*100).toFixed(2)),
-      'Untung @ Terendah (%)':c.hetNet===null?'':parseFloat((c.hetNet*100).toFixed(2))};
+      'Harga Terendah':d.het||0,'Profit Terendah (%)':c.hetNet===null?'':parseFloat((c.hetNet*100).toFixed(2)),
+      'BEP Harga':Math.round(c.bep),'Target ROAS':c.roas,'Net Tanpa Iklan (%)':parseFloat((c.nna*100).toFixed(2))};
   });
   const ws=XLSX.utils.json_to_sheet(rows);
   ws['!cols']=[{wch:22},{wch:14},{wch:10},{wch:12},{wch:12},{wch:14},{wch:10},{wch:14},{wch:14},{wch:12},{wch:10},{wch:14},{wch:14},{wch:12},{wch:16},{wch:18}];
