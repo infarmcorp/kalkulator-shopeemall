@@ -278,22 +278,22 @@ td select.ts:focus{border-color:var(--gm);}
       <table>
         <thead><tr>
           <th class="ns" style="width:34px;"></th>
-          <th onclick="sortBy('sku')">Nama SKU <span class="si">↕</span></th>
-          <th onclick="sortBy('kat')">Kategori <span class="si">↕</span></th>
-          <th onclick="sortBy('type')">Tipe <span class="si">↕</span></th>
-          <th onclick="sortBy('hpp')" style="text-align:right;">HPP <span class="si">↕</span></th>
-          <th onclick="sortBy('harga')" style="text-align:right;">Harga Jual <span class="si">↕</span></th>
-          <th onclick="sortBy('minbeli')" style="text-align:right;">Min. Beli <span class="si">↕</span></th>
-          <th onclick="sortBy('gm')" style="text-align:right;">Gross Margin <span class="si">↕</span></th>
-          <th style="text-align:right;">Target Profit</th>
-          <th class="col-afil" style="text-align:right;">Affiliate</th>
-          <th class="col-ads" style="text-align:right;">Ads %</th>
-          <th onclick="sortBy('net')" style="text-align:right;">Net Bersih <span class="si">↕</span></th>
-          <th class="col-het" style="text-align:right;">Harga Terendah</th>
-          <th class="col-het" style="text-align:right;">Profit Terendah</th>
-          <th class="col-bep" style="text-align:right;">BEP Harga</th>
-          <th style="text-align:right;">Target ROAS</th>
-          <th class="col-nna" style="text-align:right;">Net Tanpa Iklan</th>
+          <th data-sort="sku" onclick="sortBy('sku')">Nama SKU <span class="si">↕</span></th>
+          <th data-sort="kat" onclick="sortBy('kat')">Kategori <span class="si">↕</span></th>
+          <th data-sort="type" onclick="sortBy('type')">Tipe <span class="si">↕</span></th>
+          <th data-sort="hpp" onclick="sortBy('hpp')" style="text-align:right;">HPP <span class="si">↕</span></th>
+          <th data-sort="harga" onclick="sortBy('harga')" style="text-align:right;">Harga Jual <span class="si">↕</span></th>
+          <th data-sort="minbeli" onclick="sortBy('minbeli')" style="text-align:right;">Min. Beli <span class="si">↕</span></th>
+          <th data-sort="gm" onclick="sortBy('gm')" style="text-align:right;">Gross Margin <span class="si">↕</span></th>
+          <th data-sort="tprofit" onclick="sortBy('tprofit')" style="text-align:right;">Target Profit <span class="si">↕</span></th>
+          <th class="col-afil" data-sort="afil" onclick="sortBy('afil')" style="text-align:right;">Affiliate <span class="si">↕</span></th>
+          <th class="col-ads" data-sort="ads" onclick="sortBy('ads')" style="text-align:right;">Ads % <span class="si">↕</span></th>
+          <th data-sort="net" onclick="sortBy('net')" style="text-align:right;">Net Bersih <span class="si">↕</span></th>
+          <th class="col-het" data-sort="het" onclick="sortBy('het')" style="text-align:right;">Harga Terendah <span class="si">↕</span></th>
+          <th class="col-het" data-sort="hetnet" onclick="sortBy('hetnet')" style="text-align:right;">Profit Terendah <span class="si">↕</span></th>
+          <th class="col-bep" data-sort="bep" onclick="sortBy('bep')" style="text-align:right;">BEP Harga <span class="si">↕</span></th>
+          <th data-sort="roas" onclick="sortBy('roas')" style="text-align:right;">Target ROAS <span class="si">↕</span></th>
+          <th class="col-nna" data-sort="nna" onclick="sortBy('nna')" style="text-align:right;">Net Tanpa Iklan <span class="si">↕</span></th>
         </tr></thead>
         <tbody id="tbody">
           <tr><td colspan="17"><div class="empty-state"><div class="empty-icon">🌱</div><div class="empty-title">Memuat data dari Google Sheet...</div></div></td></tr>
@@ -555,6 +555,18 @@ function sortBy(col){
   sortCol===col?sortDir*=-1:(sortCol=col,sortDir=1);
   renderReset();
 }
+function updateSortIndicators(){
+  document.querySelectorAll('th[data-sort]').forEach(th=>{
+    const si=th.querySelector('.si');if(!si)return;
+    if(th.dataset.sort===sortCol){
+      si.textContent=sortDir>0?'↑':'↓';
+      si.style.opacity='1';si.style.color='var(--gm)';
+      th.style.color='var(--gd)';
+    }else{
+      si.textContent='↕';si.style.opacity='';si.style.color='';th.style.color='';
+    }
+  });
+}
 
 // ── FILTER ──
 function getMsSelected(key){
@@ -617,20 +629,35 @@ function onSearch(){clearTimeout(_searchTimer);_searchTimer=setTimeout(renderRes
 // ── RENDER ──
 function render(){
   let rows=getFiltered();
+  updateSortIndicators();
   // Cache calc() sekali per baris — dipakai di sort, build row, & summary
   const _cc=new Map();
   const C=d=>{let v=_cc.get(d.id);if(v===undefined){v=calc(d);_cc.set(d.id,v);}return v;};
   if(sortCol){
+    const sval=d=>{
+      const c=C(d);
+      switch(sortCol){
+        case 'sku':return d.sku;
+        case 'kat':return d.kat;
+        case 'type':return d.type;
+        case 'hpp':return d.hpp;
+        case 'harga':return d.harga;
+        case 'minbeli':return d.minbeli;
+        case 'tprofit':return d.tprofit;
+        case 'afil':return d.afil;
+        case 'ads':return d.ads;
+        case 'het':return d.het||0;
+        case 'gm':return c.gm;
+        case 'net':return c.net;
+        case 'nna':return c.nna;
+        case 'bep':return c.bep;
+        case 'hetnet':return c.hetNet===null?-Infinity:c.hetNet;
+        case 'roas':return d.ads>0?(100/d.ads):Infinity;
+        default:return 0;
+      }
+    };
     rows.sort((a,b)=>{
-      let av,bv;
-      if(sortCol==='sku'){av=a.sku;bv=b.sku;}
-      else if(sortCol==='kat'){av=a.kat;bv=b.kat;}
-      else if(sortCol==='type'){av=a.type;bv=b.type;}
-      else if(sortCol==='hpp'){av=a.hpp;bv=b.hpp;}
-      else if(sortCol==='harga'){av=a.harga;bv=b.harga;}
-      else if(sortCol==='minbeli'){av=a.minbeli;bv=b.minbeli;}
-      else if(sortCol==='gm'){av=C(a).gm;bv=C(b).gm;}
-      else if(sortCol==='net'){av=C(a).net;bv=C(b).net;}
+      const av=sval(a),bv=sval(b);
       return(typeof av==='string'?av.localeCompare(bv):(av-bv))*sortDir;
     });
   }
