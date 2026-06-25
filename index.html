@@ -62,7 +62,7 @@ body{background:#F2F5F1;font-family:'Inter',sans-serif;color:#1A3A2A;font-size:1
 .panel-title{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--gd);flex:1;}
 .panel-body{padding:9px 15px;}
 /* FILTERS */
-.filters{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:9px;}
+.filters{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1.1fr;gap:9px;}
 .finput,.fsel{font-family:'Inter',sans-serif;font-size:12px;height:31px;border:1px solid var(--gb);border-radius:var(--rsm);padding:0 10px;color:var(--gd);background:var(--g50);width:100%;outline:none;transition:border-color .15s,background .15s;}
 .finput:focus,.fsel:focus{border-color:var(--gm);background:#fff;}
 /* COL TOGGLE */
@@ -119,6 +119,10 @@ td select.ts:focus{border-color:var(--gm);}
 .pw{background:var(--al);color:#78350F;}
 .vp{color:#166534;font-weight:600;}
 .vn{color:#991B1B;font-weight:600;}
+/* Penanda: HET = Harga Jual (tidak ada ruang diskon) */
+.het-eq input{background:#ECEDFF!important;border-color:#8B93F8!important;color:#3730A3!important;font-weight:700!important;}
+.het-eq{position:relative;}
+.het-eq::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#6366F1;}
 .vd{color:var(--g500);font-size:11px;font-weight:500;}
 .pu{font-size:10px;color:var(--g400);margin-left:2px;}
 .del-btn{background:none;border:none;cursor:pointer;color:var(--g400);font-size:12px;padding:3px 5px;border-radius:4px;line-height:1;transition:all .12s;}
@@ -222,6 +226,12 @@ td select.ts:focus{border-color:var(--gm);}
           <option value="warn">⚠️ Warning</option>
           <option value="neg">🔴 Minus</option>
         </select>
+        <select class="fsel" id="f-het" onchange="renderReset()">
+          <option value="">Semua HET</option>
+          <option value="eq">🟦 HET = Harga Jual</option>
+          <option value="room">🟩 Ada ruang diskon</option>
+          <option value="empty">⬜ HET belum diisi</option>
+        </select>
         <div class="ms-wrap" id="ms-type-wrap">
           <div class="ms-trigger" onclick="toggleMs('type')">
             <span id="ms-type-label">Semua tipe</span>
@@ -255,6 +265,7 @@ td select.ts:focus{border-color:var(--gm);}
     </div>
     <div class="ctog-wrap">
       <span class="ctog-lbl">Kolom:</span>
+      <button class="ctog on" data-col="het" onclick="togCol(this)">Harga Terendah</button>
       <button class="ctog on" data-col="bep" onclick="togCol(this)">BEP Harga</button>
       <button class="ctog on" data-col="nna" onclick="togCol(this)">Net Tanpa Iklan</button>
       <button class="ctog on" data-col="afil" onclick="togCol(this)">Affiliate</button>
@@ -272,6 +283,8 @@ td select.ts:focus{border-color:var(--gm);}
           <th onclick="sortBy('type')">Tipe <span class="si">↕</span></th>
           <th onclick="sortBy('hpp')" style="text-align:right;">HPP <span class="si">↕</span></th>
           <th onclick="sortBy('harga')" style="text-align:right;">Harga Jual <span class="si">↕</span></th>
+          <th class="col-het" style="text-align:right;">Harga Terendah</th>
+          <th class="col-het" style="text-align:right;">Untung @ Terendah</th>
           <th onclick="sortBy('minbeli')" style="text-align:right;">Min. Beli <span class="si">↕</span></th>
           <th onclick="sortBy('gm')" style="text-align:right;">Gross Margin <span class="si">↕</span></th>
           <th style="text-align:right;">Target Profit</th>
@@ -283,7 +296,7 @@ td select.ts:focus{border-color:var(--gm);}
           <th class="col-nna" style="text-align:right;">Net Tanpa Iklan</th>
         </tr></thead>
         <tbody id="tbody">
-          <tr><td colspan="15"><div class="empty-state"><div class="empty-icon">🌱</div><div class="empty-title">Memuat data dari Google Sheet...</div></div></td></tr>
+          <tr><td colspan="17"><div class="empty-state"><div class="empty-icon">🌱</div><div class="empty-title">Memuat data dari Google Sheet...</div></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -357,7 +370,7 @@ const EXCLUDE_KATS=['BENIH REPACK'];
 
 // ── STATE ──
 let data=[], nextId=1, sortCol='', sortDir=1;
-let colVis={bep:true,nna:true,afil:true,ads:true};
+let colVis={bep:true,nna:true,afil:true,ads:true,het:true};
 let hasChanges=false;
 // ── PAGINATION ──
 let curPage=1, pageSize=100;
@@ -375,7 +388,16 @@ function calc(d){
   const nna=gm-(d.afil/100);
   const bep=mb>0?(fee+hp+opex)/mb:0;
   const roas=d.ads>0?(100/d.ads).toFixed(2)+'x':'—';
-  return{gm,net,nna,bep,roas};
+  // ── Untung di Harga Terendah (HET): margin kalau dijual di harga terendah, sudah dipotong affiliate + ads ──
+  const het=d.het||0;
+  const hkH=het*mb;
+  const feeH=hkH*(FA+FG+FX+FM)+FP;
+  const masukH=hkH-feeH;
+  const opexH=(masukH*(1-PPn))*OPEX;
+  const gpH=hkH-feeH-hp-opexH;
+  const gmH=hkH>0?gpH/hkH:0;
+  const hetNet=het>0?(gmH-(d.afil/100)-(d.ads/100)):null;
+  return{gm,net,nna,bep,roas,het,hetNet};
 }
 
 // ── FORMAT ──
@@ -437,6 +459,7 @@ async function loadFromSheet(){
         const tprofit=parsePct(row['TARGET PROFIT']||row['Target Profit']||0);
         const afil=parsePct(row['AFFILIATE']||row['Affiliate']||0);
         const ads=parsePct(row['ADS']||row['Ads']||0);
+        const het=parseRp(row['HARGA TERENDAH']||row['Harga Terendah']||row['HET']||0);
         data.push({
           id:nextId++,
           sku:skuVal,
@@ -448,6 +471,7 @@ async function loadFromSheet(){
           tprofit:tprofit,
           afil:afil,
           ads:ads,
+          het:het,
         });
       });
       hasChanges=false;
@@ -462,7 +486,7 @@ async function loadFromSheet(){
     setSyncStatus('error','Gagal memuat');
     showToast('Gagal memuat data dari Google Sheet',true);
     // show empty state
-    document.getElementById('tbody').innerHTML='<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Gagal terhubung ke Google Sheet</div><div class="empty-sub">Periksa koneksi internet atau coba refresh halaman</div></div></td></tr>';
+    document.getElementById('tbody').innerHTML='<tr><td colspan="17"><div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Gagal terhubung ke Google Sheet</div><div class="empty-sub">Periksa koneksi internet atau coba refresh halaman</div></div></td></tr>';
   }
 }
 
@@ -477,6 +501,7 @@ async function saveToSheet(){
       'TIPE':d.type,
       'HPP':d.hpp,
       'HARGA JUAL':d.harga,
+      'HARGA TERENDAH':d.het,
       'MIN BELI':d.minbeli,
       'TARGET PROFIT':fmtD(d.tprofit)+'%',
       'AFFILIATE':fmtD(d.afil)+'%',
@@ -567,11 +592,18 @@ function getFiltered(){
   const selTypes=getMsSelected('type');
   const selKats=getMsSelected('kat');
   const fs=document.getElementById('f-status').value;
+  const fh=(document.getElementById('f-het')||{}).value||'';
   return data.filter(d=>{
     if(q&&d.sku.toLowerCase().indexOf(q)<0)return false;
     if(selTypes.length>0&&!selTypes.includes(d.type))return false;
     if(selKats.length>0&&!selKats.includes(d.kat))return false;
     if(fs&&st(calc(d).net)!==fs)return false;
+    if(fh){
+      const het=d.het||0;
+      if(fh==='eq'&&!(het>0&&het===d.harga))return false;
+      if(fh==='room'&&!(het>0&&het<d.harga))return false;
+      if(fh==='empty'&&het>0)return false;
+    }
     return true;
   });
 }
@@ -607,9 +639,10 @@ function render(){
   const adsD=colVis.ads?'':'display:none';
   const bD=colVis.bep?'':'display:none';
   const nD=colVis.nna?'':'display:none';
+  const hetD=colVis.het?'':'display:none';
 
   if(rows.length===0){
-    tb.innerHTML=`<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">🌱</div><div class="empty-title">${data.length===0?'Belum ada SKU':'Tidak ada SKU yang cocok'}</div><div class="empty-sub">${data.length===0?'Upload Excel atau tambah SKU baru':'Coba ubah filter pencarian'}</div></div></td></tr>`;
+    tb.innerHTML=`<tr><td colspan="17"><div class="empty-state"><div class="empty-icon">🌱</div><div class="empty-title">${data.length===0?'Belum ada SKU':'Tidak ada SKU yang cocok'}</div><div class="empty-sub">${data.length===0?'Upload Excel atau tambah SKU baru':'Coba ubah filter pencarian'}</div></div></td></tr>`;
     updateSummary([]);
     document.getElementById('row-count').textContent='';
     const pg=document.getElementById('pager');if(pg)pg.style.display='none';
@@ -631,6 +664,7 @@ function render(){
     const s=st(c.net);
     const bg=rowBg(c.net);
     const bepOk=d.harga>=c.bep;
+    const hetEq=(d.het>0&&d.het===d.harga);
     const tr=document.createElement('tr');
     tr.id='r'+d.id;
     tr.className='s'+s[0];
@@ -642,6 +676,8 @@ function render(){
       `<td><select class="ts" onchange="upd(${d.id},'type',this.value)">${selOpts(TYPES,d.type)}</select></td>`+
       `<td style="text-align:right"><input type="number" value="${d.hpp}" min="0" style="width:72px" onchange="upd(${d.id},'hpp',this.value)"></td>`+
       `<td style="text-align:right"><input type="number" value="${d.harga}" min="0" style="width:78px" onchange="upd(${d.id},'harga',this.value)"></td>`+
+      `<td class="col-het j-hetcell${hetEq?' het-eq':''}" style="text-align:right;${hetD}"><input type="number" value="${d.het||0}" min="0" style="width:78px" onchange="upd(${d.id},'het',this.value)"></td>`+
+      `<td class="col-het" style="text-align:right;${hetD}"><span class="j-hetnet ${c.hetNet===null?'':(c.hetNet>=0?'vp':'vn')}">${c.het>0?pct(c.hetNet):'—'}</span></td>`+
       `<td style="text-align:right"><input type="number" class="sm" value="${d.minbeli}" min="1" onchange="upd(${d.id},'minbeli',this.value)"></td>`+
       `<td style="text-align:right"><span class="j-gm pill ${pc(s)}">${pct(c.gm)}</span></td>`+
       `<td style="text-align:right"><input class="ti dec" type="text" value="${fmtD(d.tprofit)}" style="width:50px" onchange="updD(${d.id},'tprofit',this.value)" onblur="this.value=fmtD(parseD(this.value))"><span class="pu">%</span></td>`+
@@ -692,6 +728,8 @@ function recalcRow(d){
   const bep=tr.querySelector('.j-bep');if(bep){bep.className='j-bep '+(d.harga>=c.bep?'vp':'vn');bep.textContent=rp(c.bep);}
   const roas=tr.querySelector('.j-roas');if(roas){roas.textContent=c.roas;}
   const nna=tr.querySelector('.j-nna');if(nna){nna.className='j-nna '+(c.nna>=0?'vp':'vn');nna.textContent=pct(c.nna);}
+  const hn=tr.querySelector('.j-hetnet');if(hn){hn.className='j-hetnet '+(c.hetNet===null?'':(c.hetNet>=0?'vp':'vn'));hn.textContent=(c.het>0?pct(c.hetNet):'—');}
+  const hc=tr.querySelector('.j-hetcell');if(hc){hc.classList.toggle('het-eq',(d.het>0&&d.het===d.harga));}
 }
 
 let _editTimer=null;
@@ -720,7 +758,7 @@ function delRow(id){
   showToast('SKU dihapus — klik Simpan untuk update Google Sheet');
 }
 function addRow(){
-  data.push({id:nextId++,sku:'SKU-BARU',kat:'FERTILIZER',type:'NEW',hpp:0,harga:0,minbeli:1,tprofit:10,afil:7,ads:7});
+  data.push({id:nextId++,sku:'SKU-BARU',kat:'FERTILIZER',type:'NEW',hpp:0,harga:0,minbeli:1,tprofit:10,afil:7,ads:7,het:0});
   markChanged();
   curPage=999999;render(); // render() akan clamp ke halaman terakhir
   setTimeout(()=>{
@@ -780,7 +818,8 @@ function processFile(file){
         sku:['sku','nama sku','name'],kat:['kategori','kategory','category','kat'],
         type:['tipe','type'],hpp:['hpp','harga pokok'],harga:['harga jual','harga','price'],
         minbeli:['min beli','min. beli','minbeli','minimum beli'],
-        tprofit:['target profit','profit'],afil:['affiliate','afiliasi'],ads:['ads','iklan']
+        tprofit:['target profit','profit'],afil:['affiliate','afiliasi'],ads:['ads','iklan'],
+        het:['harga terendah','het','harga eceran terendah','harga jual terendah','terendah']
       };
       function findCol(row,keys){
         const rk=Object.keys(row).map(k=>({orig:k,low:k.toLowerCase().trim()}));
@@ -794,7 +833,7 @@ function processFile(file){
         const tipe=String(findCol(row,colMap.type)||'').trim().toUpperCase();
         if(EXCLUDE_TYPES.includes(tipe))return;
         const existing=data.find(d=>d.sku.toLowerCase()===skuVal.toLowerCase());
-        const obj=existing||{id:nextId++,sku:skuVal,kat:'FERTILIZER',type:'NEW',hpp:0,harga:0,minbeli:1,tprofit:10,afil:7,ads:7};
+        const obj=existing||{id:nextId++,sku:skuVal,kat:'FERTILIZER',type:'NEW',hpp:0,harga:0,minbeli:1,tprofit:10,afil:7,ads:7,het:0};
         obj.sku=skuVal;
         const kat=String(findCol(row,colMap.kat)||'').trim().toUpperCase();
         if(kat)obj.kat=kat;
@@ -806,6 +845,7 @@ function processFile(file){
         v=findCol(row,colMap.tprofit);if(v!==undefined)obj.tprofit=parsePctUniv(v);
         v=findCol(row,colMap.afil);if(v!==undefined)obj.afil=parsePctUniv(v);
         v=findCol(row,colMap.ads);if(v!==undefined)obj.ads=parsePctUniv(v);
+        v=findCol(row,colMap.het);if(v!==undefined)obj.het=parseFloat(String(v).replace(/[^0-9.]/g,''))||0;
         if(!existing){data.push(obj);added++;}else updated++;
       });
       closeUpload();markChanged();render();
@@ -820,13 +860,14 @@ function exportExcel(){
   if(data.length===0){showToast('Tidak ada data',true);return;}
   const rows=data.map(d=>{
     const c=calc(d);
-    return{'SKU':d.sku,'Kategori':d.kat,'Tipe':d.type,'HPP':d.hpp,'Harga Jual':d.harga,'Min. Beli':d.minbeli,
+    return{'SKU':d.sku,'Kategori':d.kat,'Tipe':d.type,'HPP':d.hpp,'Harga Jual':d.harga,'Harga Terendah':d.het||0,'Min. Beli':d.minbeli,
       'Gross Margin (%)':parseFloat((c.gm*100).toFixed(2)),'Target Profit (%)':d.tprofit,
       'Affiliate (%)':d.afil,'Ads (%)':d.ads,'Net Bersih (%)':parseFloat((c.net*100).toFixed(2)),
-      'BEP Harga':Math.round(c.bep),'Target ROAS':c.roas,'Net Tanpa Iklan (%)':parseFloat((c.nna*100).toFixed(2))};
+      'BEP Harga':Math.round(c.bep),'Target ROAS':c.roas,'Net Tanpa Iklan (%)':parseFloat((c.nna*100).toFixed(2)),
+      'Untung @ Terendah (%)':c.hetNet===null?'':parseFloat((c.hetNet*100).toFixed(2))};
   });
   const ws=XLSX.utils.json_to_sheet(rows);
-  ws['!cols']=[{wch:22},{wch:14},{wch:10},{wch:12},{wch:12},{wch:10},{wch:14},{wch:14},{wch:12},{wch:10},{wch:14},{wch:14},{wch:12},{wch:16}];
+  ws['!cols']=[{wch:22},{wch:14},{wch:10},{wch:12},{wch:12},{wch:14},{wch:10},{wch:14},{wch:14},{wch:12},{wch:10},{wch:14},{wch:14},{wch:12},{wch:16},{wch:18}];
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'SKU Kalkulator');
   const now=new Date();
